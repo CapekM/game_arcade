@@ -1,7 +1,8 @@
 """Main entry point for the game."""
 
 import arcade
-from .game import GameWindow
+
+from asteroids.game import GameWindow
 
 
 def main() -> None:

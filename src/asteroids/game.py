@@ -4,7 +4,7 @@ import arcade
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Moje Super Hra"
+SCREEN_TITLE = "Asteroids"
 
 
 class GameWindow(arcade.Window):
@@ -13,7 +13,7 @@ class GameWindow(arcade.Window):
     def __init__(self) -> None:
         """Initialize the game window."""
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-        self.background_color = arcade.color.AMAZON
+        self.background_color = arcade.color.DARK_LAVENDER  # Color(42, 42, 42, 255)
 
     def setup(self) -> None:
         """Set up the game, initialize variables."""

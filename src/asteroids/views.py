@@ -38,8 +38,6 @@ class MenuView(arcade.View):
     def on_key_press(self, key: int, modifiers: int) -> None:
         """Handle key press events."""
         if key == arcade.key.SPACE:
-            from .game import GameWindow
-
             game_view = GameView()
             game_view.setup()
             self.window.show_view(game_view)
