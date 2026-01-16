@@ -2,10 +2,10 @@
 
 import arcade
 
-
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Asteroids"
+PLAYER_MOVEMENT_SPEED = 5
 
 
 class GameWindow(arcade.Window):
@@ -26,6 +26,10 @@ class GameWindow(arcade.Window):
         self.player_sprite.center_x = SCREEN_WIDTH // 2
         self.player_sprite.center_y = SCREEN_HEIGHT // 2
 
+        self.physics_engine = arcade.PhysicsEngineSimple(
+            self.player_sprite
+        )
+
     def setup(self) -> None:
         """Set up the game, initialize variables."""
         pass
@@ -38,16 +42,34 @@ class GameWindow(arcade.Window):
 
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
-        pass
+        print(f"{self.player_sprite.position = }")
+        print(f"{self.player_sprite.center_x = }")
+        print(f"{self.player_sprite.center_y = }")
+        self.physics_engine.update()
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         """Handle key press events."""
-        pass
+
+        if key == arcade.key.UP or key == arcade.key.W:
+            self.player_sprite.change_y = PLAYER_MOVEMENT_SPEED
+        elif key == arcade.key.DOWN or key == arcade.key.S:
+            self.player_sprite.change_y = -PLAYER_MOVEMENT_SPEED
+        elif key == arcade.key.LEFT or key == arcade.key.A:
+            self.player_sprite.change_x = -PLAYER_MOVEMENT_SPEED
+        elif key == arcade.key.RIGHT or key == arcade.key.D:
+            self.player_sprite.change_x = PLAYER_MOVEMENT_SPEED
 
     def on_key_release(self, key: int, modifiers: int) -> None:
         """Handle key release events."""
-        pass
 
+        if key == arcade.key.UP or key == arcade.key.W:
+            self.player_sprite.change_y = 0
+        elif key == arcade.key.DOWN or key == arcade.key.S:
+            self.player_sprite.change_y = 0
+        elif key == arcade.key.LEFT or key == arcade.key.A:
+            self.player_sprite.change_x = 0
+        elif key == arcade.key.RIGHT or key == arcade.key.D:
+            self.player_sprite.change_x = 0
 
 
 def main() -> None:
