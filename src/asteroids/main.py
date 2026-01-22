@@ -1,20 +1,89 @@
 """Main entry point for the game."""
 import math
+import random
+from enum import IntEnum
 
 import arcade
 
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
 SCREEN_TITLE = "Asteroids"
 
 SCALE = 0.5
+STARTING_ASTEROID_COUNT = 3
+
+# Screen dimensions and limits
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+
+OFFSCREEN_SPACE = 10
+LEFT_LIMIT = -OFFSCREEN_SPACE
+RIGHT_LIMIT = SCREEN_WIDTH + OFFSCREEN_SPACE
+BOTTOM_LIMIT = -OFFSCREEN_SPACE
+TOP_LIMIT = SCREEN_HEIGHT + OFFSCREEN_SPACE
+
+
+class AsteroidType(IntEnum):
+    BIG = 4
+    MEDIUM = 3
+    SMALL = 2
+    TINY = 1
+
+
+class AsteroidSprite(arcade.Sprite):
+    """Sprite that represents an asteroid."""
+    asteroid_images = {
+        AsteroidType.BIG: (
+            ":resources:images/space_shooter/meteorGrey_big1.png",
+            ":resources:images/space_shooter/meteorGrey_big2.png",
+            ":resources:images/space_shooter/meteorGrey_big3.png",
+            ":resources:images/space_shooter/meteorGrey_big4.png",
+        ),
+        AsteroidType.MEDIUM: (
+            ":resources:images/space_shooter/meteorGrey_med1.png",
+            ":resources:images/space_shooter/meteorGrey_med2.png",
+        ),
+        AsteroidType.SMALL: (
+            ":resources:images/space_shooter/meteorGrey_small1.png",
+            ":resources:images/space_shooter/meteorGrey_small2.png",
+        ),
+        AsteroidType.TINY: (
+            ":resources:images/space_shooter/meteorGrey_tiny1.png",
+            ":resources:images/space_shooter/meteorGrey_tiny2.png",
+        ),
+    }
+
+    def __init__(self, scale: float, asteroid_type: AsteroidType) -> None:
+        self.asteroid_type: AsteroidType = asteroid_type
+        texture_path = random.choice(self.asteroid_images[asteroid_type])
+        super().__init__(texture_path, scale=scale)
+
+        # Set position
+        self.center_y = random.randrange(BOTTOM_LIMIT, TOP_LIMIT)
+        self.center_x = random.randrange(LEFT_LIMIT, RIGHT_LIMIT)
+
+        # Set speed / rotation
+        self.change_x = random.random() * 2 - 1
+        self.change_y = random.random() * 2 - 1
+        self.change_angle = (random.random() - 0.5) * 2
+
+    def update(self, delta_time: float = 1 / 60, **kwargs) -> None:
+        """ Move the asteroid around. """
+        super().update(delta_time)
+        if self.center_x < LEFT_LIMIT:
+            self.center_x = RIGHT_LIMIT
+        if self.center_x > RIGHT_LIMIT:
+            self.center_x = LEFT_LIMIT
+        if self.center_y > TOP_LIMIT:
+            self.center_y = BOTTOM_LIMIT
+        if self.center_y < BOTTOM_LIMIT:
+            self.center_y = TOP_LIMIT
+
 
 class ShipSprite(arcade.Sprite):
     """ Sprite that represents our spaceship. """
     thrust_amount = 0.2
     turn_speed = 3
 
-    def __init__(self, texture_path, scale):
+    def __init__(self, texture_path, scale: float) -> None:
         """ Set up the spaceship. """
 
         # Call the parent Sprite constructor
@@ -137,9 +206,19 @@ class GameWindow(arcade.Window):
         self.player_sprite_list = arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
 
+        self.asteroid_list = arcade.SpriteList()
     def setup(self) -> None:
         """Set up the game, initialize variables."""
-        pass
+
+        for _ in range(STARTING_ASTEROID_COUNT):
+            # Pick one of four random rock images
+            asteroid_sprite = AsteroidSprite(
+                scale=SCALE,
+                asteroid_type=AsteroidType.BIG,
+            )
+
+            self.asteroid_list.append(asteroid_sprite)
+
 
     def on_draw(self) -> None:
         """Draw the game."""
@@ -149,10 +228,12 @@ class GameWindow(arcade.Window):
 
         # Draw our sprites
         self.player_sprite_list.draw()
+        self.asteroid_list.draw()
 
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
         self.player_sprite_list.update()
+        self.asteroid_list.update()
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is pressed."""
@@ -160,10 +241,10 @@ class GameWindow(arcade.Window):
             self.close()
         self.player_sprite.on_key_press(symbol)
 
-
     def on_key_release(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is released."""
         self.player_sprite.on_key_release(symbol)
+
 
 def main() -> None:
     """Main function to start the game."""
