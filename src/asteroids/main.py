@@ -206,7 +206,23 @@ class GameWindow(arcade.Window):
         self.player_sprite_list = arcade.SpriteList()
         self.player_sprite_list.append(self.player_sprite)
 
+        self.score = 0
         self.asteroid_list = arcade.SpriteList()
+
+        # Text fields
+        self.text_score = arcade.Text(
+            f"Score: {self.score}",
+            x=10,
+            y=70,
+            font_size=13,
+        )
+        self.text_asteroid_count = arcade.Text(
+            f"Asteroid Count: {len(self.asteroid_list)}",
+            x=10,
+            y=50,
+            font_size=13,
+        )
+
     def setup(self) -> None:
         """Set up the game, initialize variables."""
 
@@ -219,6 +235,8 @@ class GameWindow(arcade.Window):
 
             self.asteroid_list.append(asteroid_sprite)
 
+        self.text_score.text = f"Score: {self.score}"
+        self.text_asteroid_count.text = f"Asteroid Count: {len(self.asteroid_list)}"
 
     def on_draw(self) -> None:
         """Draw the game."""
@@ -230,10 +248,18 @@ class GameWindow(arcade.Window):
         self.player_sprite_list.draw()
         self.asteroid_list.draw()
 
+        # Draw the text
+        self.text_score.draw()
+        self.text_asteroid_count.draw()
+
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
         self.player_sprite_list.update()
         self.asteroid_list.update()
+
+        # Update the text objects
+        self.text_score.text = f"Score: {self.score}"
+        self.text_asteroid_count.text = f"Asteroid Count: {len(self.asteroid_list)}"
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is pressed."""
