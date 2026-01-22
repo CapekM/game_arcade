@@ -28,6 +28,8 @@ class ShipSprite(arcade.Sprite):
         self.max_speed = 4
         self.respawning = 0  # Counter, 0 meaning not respawning
 
+        self.sound_spawn = arcade.load_sound(":resources:sounds/upgrade1.wav")
+
         # Mark that we are respawning.
         self._respawn()
 
@@ -56,6 +58,7 @@ class ShipSprite(arcade.Sprite):
             if self.respawning > 230:
                 self.respawning = 0
                 self.alpha = 255
+                arcade.play_sound(self.sound_spawn)
 
         # Apply drag forward
         if self.speed > 0:
