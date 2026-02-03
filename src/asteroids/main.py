@@ -100,9 +100,9 @@ class ShipSprite(arcade.Sprite):
         self.sound_spawn = arcade.load_sound(":resources:sounds/upgrade1.wav")
 
         # Mark that we are respawning.
-        self._respawn()
+        self.respawn()
 
-    def _respawn(self):
+    def respawn(self):
         """
         Called when we die and need to make a new ship.
         'respawning' is an invulnerability timer.
@@ -256,6 +256,12 @@ class GameWindow(arcade.Window):
         """Update game logic."""
         self.player_sprite_list.update()
         self.asteroid_list.update()
+
+        # Collision
+        if not self.player_sprite.respawning:
+            colliding_asteroids = self.player_sprite.collides_with_list(self.asteroid_list)
+            if colliding_asteroids:
+                self.player_sprite.respawn()
 
         # Update the text objects
         self.text_score.text = f"Score: {self.score}"
