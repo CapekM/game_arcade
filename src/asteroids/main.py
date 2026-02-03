@@ -3,6 +3,7 @@
 import math
 import random
 from enum import IntEnum
+from typing import Self
 
 import arcade
 
@@ -78,6 +79,52 @@ class AsteroidSprite(arcade.Sprite):
             self.center_y = BOTTOM_LIMIT
         if self.center_y < BOTTOM_LIMIT:
             self.center_y = TOP_LIMIT
+
+    def split(self) -> list[Self]:
+        """Split the asteroid into smaller pieces upon destruction."""
+
+        new_asteroids = []
+        if self.asteroid_type == AsteroidType.BIG:
+            new_type = AsteroidType.MEDIUM
+        elif self.asteroid_type == AsteroidType.MEDIUM:
+            new_type = AsteroidType.SMALL
+        elif self.asteroid_type == AsteroidType.SMALL:
+            new_type = AsteroidType.TINY
+        else:
+            return new_asteroids  # No smaller type to split into
+
+        speed_multiplier = 1.5  # Makes them 50% faster than parent
+        split_angle = 30  # Angle in degrees to diverge (20-45 is usually good)
+
+        # Convert angle to radians for math functions
+        theta = math.radians(split_angle)
+        cos_t = math.cos(theta)
+        sin_t = math.sin(theta)
+
+        # Create two smaller asteroids
+        asteroid_1 = self.__class__(scale=SCALE, asteroid_type=new_type)
+        asteroid_1.center_x = self.center_x
+        asteroid_1.center_y = self.center_y
+        asteroid_1.change_angle *= 2
+
+        # Rotate vector formula: x' = x*cos(t) - y*sin(t), y' = x*sin(t) + y*cos(t)
+        dir_x1 = self.change_x * cos_t - self.change_y * sin_t
+        dir_y1 = self.change_x * sin_t + self.change_y * cos_t
+        asteroid_1.change_x = dir_x1 * speed_multiplier
+        asteroid_1.change_y = dir_y1 * speed_multiplier
+
+        asteroid_2 = self.__class__(scale=SCALE, asteroid_type=new_type)
+        asteroid_2.center_x = self.center_x
+        asteroid_2.center_y = self.center_y
+        asteroid_1.change_angle *= 2
+
+        # For negative angle, sin(-t) becomes -sin(t), cos(-t) stays cos(t)
+        dir_x2 = self.change_x * cos_t + self.change_y * sin_t
+        dir_y2 = -self.change_x * sin_t + self.change_y * cos_t
+        asteroid_2.change_x = dir_x2 * speed_multiplier
+        asteroid_2.change_y = dir_y2 * speed_multiplier
+
+        return [asteroid_1, asteroid_2]
 
 
 class ShipSprite(arcade.Sprite):
@@ -299,9 +346,10 @@ class GameWindow(arcade.Window):
                 bullet.remove_from_sprite_lists()
                 # remove all hit asteroids, update score, and respawn replacements
                 for asteroid in colliding_asteroids:
-                    asteroid.remove_from_sprite_lists()
                     self.score += 10
-                    # TODO split asteroid
+                    asteroid.remove_from_sprite_lists()
+                    new_asteroids = asteroid.split()
+                    self.asteroid_list.extend(new_asteroids)
 
         # Collision
         if not self.player_sprite.respawning:
