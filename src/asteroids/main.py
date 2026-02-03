@@ -1,4 +1,5 @@
 """Main entry point for the game."""
+
 import math
 import random
 from enum import IntEnum
@@ -30,6 +31,7 @@ class AsteroidType(IntEnum):
 
 class AsteroidSprite(arcade.Sprite):
     """Sprite that represents an asteroid."""
+
     asteroid_images = {
         AsteroidType.BIG: (
             ":resources:images/space_shooter/meteorGrey_big1.png",
@@ -66,7 +68,7 @@ class AsteroidSprite(arcade.Sprite):
         self.change_angle = (random.random() - 0.5) * 2
 
     def update(self, delta_time: float = 1 / 60, **kwargs) -> None:
-        """ Move the asteroid around. """
+        """Move the asteroid around."""
         super().update(delta_time)
         if self.center_x < LEFT_LIMIT:
             self.center_x = RIGHT_LIMIT
@@ -79,12 +81,13 @@ class AsteroidSprite(arcade.Sprite):
 
 
 class ShipSprite(arcade.Sprite):
-    """ Sprite that represents our spaceship. """
+    """Sprite that represents our spaceship."""
+
     thrust_amount = 0.2
     turn_speed = 3
 
     def __init__(self, texture_path, scale: float) -> None:
-        """ Set up the spaceship. """
+        """Set up the spaceship."""
 
         # Call the parent Sprite constructor
         super().__init__(texture_path, scale=scale)
@@ -115,7 +118,7 @@ class ShipSprite(arcade.Sprite):
         self.alpha = 0
 
     def update(self, delta_time: float = 1 / 60, *args, **kwargs) -> None:
-        """ Update our position and other particulars. """
+        """Update our position and other particulars."""
 
         # Is the user spawning
         if self.respawning:
@@ -191,6 +194,34 @@ class ShipSprite(arcade.Sprite):
             self.change_angle = 0
 
 
+class BulletSprite(arcade.Sprite):
+    """Bullet fired by the ship."""
+
+    speed: int = 10
+
+    def __init__(self, x: float, y: float, angle: float, scale: float) -> None:
+        # small laser image from resources
+        super().__init__(":resources:images/space_shooter/laserBlue01.png", scale=scale)
+        self.center_x = x
+        self.center_y = y
+        # The image faces right by default, but our angle=0 means up, so subtract 90 degrees to match visuals to motion.
+        self.angle = angle - 90
+
+        self.change_x = math.sin(math.radians(angle)) * self.speed
+        self.change_y = math.cos(math.radians(angle)) * self.speed
+
+    def update(self, delta_time: float = 1 / 60, *args, **kwargs) -> None:
+        super().update(delta_time)
+        # Remove bullets that go off the expanded limits (consistent with asteroid wrap logic)
+        if (
+            self.center_x < LEFT_LIMIT
+            or self.center_x > RIGHT_LIMIT
+            or self.center_y < BOTTOM_LIMIT
+            or self.center_y > TOP_LIMIT
+        ):
+            self.remove_from_sprite_lists()
+
+
 class GameWindow(arcade.Window):
     """Main game window."""
 
@@ -208,6 +239,7 @@ class GameWindow(arcade.Window):
 
         self.score = 0
         self.asteroid_list = arcade.SpriteList()
+        self.bullet_list = arcade.SpriteList()
 
         # Text fields
         self.text_score = arcade.Text(
@@ -247,6 +279,7 @@ class GameWindow(arcade.Window):
         # Draw our sprites
         self.player_sprite_list.draw()
         self.asteroid_list.draw()
+        self.bullet_list.draw()
 
         # Draw the text
         self.text_score.draw()
@@ -256,6 +289,19 @@ class GameWindow(arcade.Window):
         """Update game logic."""
         self.player_sprite_list.update()
         self.asteroid_list.update()
+        self.bullet_list.update()
+
+        # Bullet–asteroid collisions
+        for bullet in self.bullet_list:  # iterate over a snapshot to be safe
+            colliding_asteroids = bullet.collides_with_list(self.asteroid_list)
+            if colliding_asteroids:
+                # remove bullet
+                bullet.remove_from_sprite_lists()
+                # remove all hit asteroids, update score, and respawn replacements
+                for asteroid in colliding_asteroids:
+                    asteroid.remove_from_sprite_lists()
+                    self.score += 10
+                    # TODO split asteroid
 
         # Collision
         if not self.player_sprite.respawning:
@@ -272,6 +318,19 @@ class GameWindow(arcade.Window):
         if symbol == arcade.key.ESCAPE:
             self.close()
         self.player_sprite.on_key_press(symbol)
+
+        # Fire bullet on SPACE
+        if symbol == arcade.key.SPACE:
+            bullet = BulletSprite(
+                self.player_sprite.center_x,
+                self.player_sprite.center_y,
+                self.player_sprite.angle,  # pass game angle (ShipSprite uses 0 as up)
+                SCALE,
+            )
+            self.bullet_list.append(bullet)
+
+            # Go ahead and move it a frame
+            bullet.update()
 
     def on_key_release(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is released."""
