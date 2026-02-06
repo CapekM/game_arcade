@@ -54,10 +54,10 @@ class AsteroidSprite(arcade.Sprite):
         ),
     }
 
-    def __init__(self, scale: float, asteroid_type: AsteroidType) -> None:
+    def __init__(self, asteroid_type: AsteroidType) -> None:
         self.asteroid_type: AsteroidType = asteroid_type
         texture_path = random.choice(self.asteroid_images[asteroid_type])
-        super().__init__(texture_path, scale=scale)
+        super().__init__(texture_path)
 
         # Set position
         self.center_y = random.randrange(BOTTOM_LIMIT, TOP_LIMIT)
@@ -102,7 +102,7 @@ class AsteroidSprite(arcade.Sprite):
         sin_t = math.sin(theta)
 
         # Create two smaller asteroids
-        asteroid_1 = self.__class__(scale=SCALE, asteroid_type=new_type)
+        asteroid_1 = self.__class__(asteroid_type=new_type)
         asteroid_1.center_x = self.center_x
         asteroid_1.center_y = self.center_y
         asteroid_1.change_angle *= 2
@@ -113,7 +113,7 @@ class AsteroidSprite(arcade.Sprite):
         asteroid_1.change_x = dir_x1 * speed_multiplier
         asteroid_1.change_y = dir_y1 * speed_multiplier
 
-        asteroid_2 = self.__class__(scale=SCALE, asteroid_type=new_type)
+        asteroid_2 = self.__class__(asteroid_type=new_type)
         asteroid_2.center_x = self.center_x
         asteroid_2.center_y = self.center_y
         asteroid_1.change_angle *= 2
@@ -141,6 +141,7 @@ class ShipSprite(arcade.Sprite):
 
         # Info on the space ship.
         # Angle comes in automatically from the parent class.
+        self.lives: int = 3
         self.thrust = 0
         self.drag = 0.05
         self.speed = 0
@@ -221,6 +222,7 @@ class ShipSprite(arcade.Sprite):
         super().update()
 
     def on_key_press(self, key: int):
+        # TODO particles for ohen za zadkem
         if key == arcade.key.UP or key == arcade.key.W:
             self.thrust = self.thrust_amount
         elif key == arcade.key.DOWN or key == arcade.key.S:
@@ -261,10 +263,10 @@ class BulletSprite(arcade.Sprite):
         super().update(delta_time)
         # Remove bullets that go off the expanded limits (consistent with asteroid wrap logic)
         if (
-            self.center_x < LEFT_LIMIT
-            or self.center_x > RIGHT_LIMIT
-            or self.center_y < BOTTOM_LIMIT
-            or self.center_y > TOP_LIMIT
+                self.center_x < LEFT_LIMIT
+                or self.center_x > RIGHT_LIMIT
+                or self.center_y < BOTTOM_LIMIT
+                or self.center_y > TOP_LIMIT
         ):
             self.remove_from_sprite_lists()
 
@@ -292,30 +294,32 @@ class GameWindow(arcade.Window):
         self.text_score = arcade.Text(
             f"Score: {self.score}",
             x=10,
-            y=70,
-            font_size=13,
+            y=SCREEN_HEIGHT - 80,
+            font_size=20,
         )
-        self.text_asteroid_count = arcade.Text(
-            f"Asteroid Count: {len(self.asteroid_list)}",
+        self.text_lives = arcade.Text(
+            f"Lives: {self.player_sprite.lives}",
             x=10,
-            y=50,
-            font_size=13,
+            y=SCREEN_HEIGHT - 50,
+            font_size=20,
         )
 
     def setup(self) -> None:
         """Set up the game, initialize variables."""
+        self.asteroid_list.clear()
+        self.score = 0
+        self.player_sprite.lives = 3
 
         for _ in range(STARTING_ASTEROID_COUNT):
             # Pick one of four random rock images
             asteroid_sprite = AsteroidSprite(
-                scale=SCALE,
                 asteroid_type=AsteroidType.BIG,
             )
 
             self.asteroid_list.append(asteroid_sprite)
 
         self.text_score.text = f"Score: {self.score}"
-        self.text_asteroid_count.text = f"Asteroid Count: {len(self.asteroid_list)}"
+        self.text_lives.text = f"Lives: {self.player_sprite.lives}"
 
     def on_draw(self) -> None:
         """Draw the game."""
@@ -330,7 +334,7 @@ class GameWindow(arcade.Window):
 
         # Draw the text
         self.text_score.draw()
-        self.text_asteroid_count.draw()
+        self.text_lives.draw()
 
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
@@ -356,10 +360,14 @@ class GameWindow(arcade.Window):
             colliding_asteroids = self.player_sprite.collides_with_list(self.asteroid_list)
             if colliding_asteroids:
                 self.player_sprite.respawn()
+                self.player_sprite.lives -= 1
 
         # Update the text objects
         self.text_score.text = f"Score: {self.score}"
-        self.text_asteroid_count.text = f"Asteroid Count: {len(self.asteroid_list)}"
+        self.text_lives.text = f"Lives: {self.player_sprite.lives}"
+
+        if self.player_sprite.lives <= 0:
+            self.setup()
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is pressed."""
