@@ -263,10 +263,10 @@ class BulletSprite(arcade.Sprite):
         super().update(delta_time)
         # Remove bullets that go off the expanded limits (consistent with asteroid wrap logic)
         if (
-                self.center_x < LEFT_LIMIT
-                or self.center_x > RIGHT_LIMIT
-                or self.center_y < BOTTOM_LIMIT
-                or self.center_y > TOP_LIMIT
+            self.center_x < LEFT_LIMIT
+            or self.center_x > RIGHT_LIMIT
+            or self.center_y < BOTTOM_LIMIT
+            or self.center_y > TOP_LIMIT
         ):
             self.remove_from_sprite_lists()
 
@@ -277,6 +277,7 @@ class GameWindow(arcade.Window):
     def __init__(self) -> None:
         """Initialize the game window."""
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        self.is_over = False
         self.background_color = arcade.color.DARK_LAVENDER  # Color(42, 42, 42, 255)
 
         self.player_sprite = ShipSprite(
@@ -306,9 +307,10 @@ class GameWindow(arcade.Window):
 
     def setup(self) -> None:
         """Set up the game, initialize variables."""
+        self.is_over = False
         self.asteroid_list.clear()
         self.score = 0
-        self.player_sprite.lives = 3
+        self.player_sprite.lives = 1  # TODO change to 3 after testing
 
         for _ in range(STARTING_ASTEROID_COUNT):
             # Pick one of four random rock images
@@ -327,6 +329,22 @@ class GameWindow(arcade.Window):
         # Clear the screen to the background color
         self.clear()
 
+        if self.is_over:
+            arcade.Text(
+                f"Your score: {self.score}",
+                x=SCREEN_WIDTH // 2,
+                y=SCREEN_HEIGHT // 2 + 30,
+                font_size=42,
+                anchor_x="center",
+            ).draw()
+            arcade.Text(
+                "Press R to restart the game",
+                x=SCREEN_WIDTH // 2,
+                y=SCREEN_HEIGHT // 2 - 30,
+                font_size=42,
+                anchor_x="center",
+            ).draw()
+
         # Draw our sprites
         self.player_sprite_list.draw()
         self.asteroid_list.draw()
@@ -338,6 +356,9 @@ class GameWindow(arcade.Window):
 
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
+        if self.is_over:
+            return
+
         self.player_sprite_list.update()
         self.asteroid_list.update()
         self.bullet_list.update()
@@ -367,26 +388,31 @@ class GameWindow(arcade.Window):
         self.text_lives.text = f"Lives: {self.player_sprite.lives}"
 
         if self.player_sprite.lives <= 0:
-            self.setup()
+            self.is_over = True
 
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is pressed."""
         if symbol == arcade.key.ESCAPE:
             self.close()
-        self.player_sprite.on_key_press(symbol)
 
-        # Fire bullet on SPACE
-        if symbol == arcade.key.SPACE:
-            bullet = BulletSprite(
-                self.player_sprite.center_x,
-                self.player_sprite.center_y,
-                self.player_sprite.angle,  # pass game angle (ShipSprite uses 0 as up)
-                SCALE,
-            )
-            self.bullet_list.append(bullet)
+        if self.is_over and symbol == arcade.key.R:
+            self.setup()
 
-            # Go ahead and move it a frame
-            bullet.update()
+        if not self.is_over:
+            self.player_sprite.on_key_press(symbol)
+
+            # Fire bullet on SPACE
+            if symbol == arcade.key.SPACE:
+                bullet = BulletSprite(
+                    self.player_sprite.center_x,
+                    self.player_sprite.center_y,
+                    self.player_sprite.angle,  # pass game angle (ShipSprite uses 0 as up)
+                    SCALE,
+                )
+                self.bullet_list.append(bullet)
+
+                # Go ahead and move it a frame
+                bullet.update()
 
     def on_key_release(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is released."""
