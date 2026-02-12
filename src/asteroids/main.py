@@ -1,8 +1,10 @@
 """Main entry point for the game."""
 
+import json
 import math
 import random
 from enum import IntEnum
+from pathlib import Path
 from typing import Self
 
 import arcade
@@ -21,6 +23,40 @@ LEFT_LIMIT = -OFFSCREEN_SPACE
 RIGHT_LIMIT = SCREEN_WIDTH + OFFSCREEN_SPACE
 BOTTOM_LIMIT = -OFFSCREEN_SPACE
 TOP_LIMIT = SCREEN_HEIGHT + OFFSCREEN_SPACE
+
+# High scores file
+HIGHSCORES_FILE = Path("highscores.json")
+
+
+def load_high_scores() -> list[dict[str, int | str]]:
+    """Load high scores from JSON file."""
+    if not HIGHSCORES_FILE.exists():
+        return []
+    try:
+        with open(HIGHSCORES_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_high_score(name: str, score: int) -> None:
+    """Save a new high score to JSON file."""
+    scores = load_high_scores()
+    scores.append({"name": name, "score": score})
+    # Sort by score descending, keep top 10
+    scores.sort(key=lambda x: x["score"], reverse=True)
+    scores = scores[:10]
+    try:
+        with open(HIGHSCORES_FILE, "w") as f:
+            json.dump(scores, f, indent=2)
+    except OSError:
+        pass  # Silently fail if we can't save
+
+
+def get_top_scores(count: int = 5) -> list[dict[str, int | str]]:
+    """Get the top N high scores."""
+    scores = load_high_scores()
+    return scores[:count]
 
 
 class AsteroidType(IntEnum):
@@ -277,7 +313,7 @@ class MainMenuView(arcade.View):
     def __init__(self) -> None:
         """Initialize the main menu."""
         super().__init__()
-        self.menu_options = ["Play", "Options", "Exit"]
+        self.menu_options = ["Play", "Highest scores", "Options", "Exit"]
         self.selected_index = 0
 
     def on_show_view(self) -> None:
@@ -332,11 +368,104 @@ class MainMenuView(arcade.View):
             game_view = GameView()
             game_view.setup()
             self.window.show_view(game_view)
+        elif selected_option == "Highest scores":
+            highscores_view = HighScoresView()
+            self.window.show_view(highscores_view)
         elif selected_option == "Options":
             # TODO: Implement options menu
             pass
         elif selected_option == "Exit":
             self.window.close()
+
+
+class HighScoresView(arcade.View):
+    """View to display high scores."""
+
+    def __init__(self) -> None:
+        """Initialize the high scores view."""
+        super().__init__()
+
+    def on_show_view(self) -> None:
+        """Called when this view is shown."""
+        self.window.background_color = arcade.color.DARK_LAVENDER
+
+    def on_draw(self) -> None:
+        """Draw the high scores screen."""
+        self.clear()
+
+        # Title
+        arcade.Text(
+            "HIGH SCORES",
+            x=SCREEN_WIDTH // 2,
+            y=SCREEN_HEIGHT // 2 + 200,
+            font_size=54,
+            anchor_x="center",
+            color=arcade.color.YELLOW,
+        ).draw()
+
+        # Get top 5 scores
+        top_scores = get_top_scores(5)
+
+        if not top_scores:
+            arcade.Text(
+                "No scores yet!",
+                x=SCREEN_WIDTH // 2,
+                y=SCREEN_HEIGHT // 2,
+                font_size=36,
+                anchor_x="center",
+                color=arcade.color.WHITE,
+            ).draw()
+        else:
+            # Display scores
+            for i, score_entry in enumerate(top_scores):
+                y_position = SCREEN_HEIGHT // 2 + 80 - i * 60
+                rank = i + 1
+
+                # Rank number
+                arcade.Text(
+                    f"{rank}.",
+                    x=SCREEN_WIDTH // 2 - 250,
+                    y=y_position,
+                    font_size=32,
+                    anchor_x="right",
+                    color=arcade.color.GOLD if rank == 1 else arcade.color.WHITE,
+                ).draw()
+
+                # Player name
+                arcade.Text(
+                    str(score_entry["name"]),
+                    x=SCREEN_WIDTH // 2 - 200,
+                    y=y_position,
+                    font_size=32,
+                    anchor_x="left",
+                    color=arcade.color.GOLD if rank == 1 else arcade.color.WHITE,
+                ).draw()
+
+                # Score
+                arcade.Text(
+                    str(score_entry["score"]),
+                    x=SCREEN_WIDTH // 2 + 250,
+                    y=y_position,
+                    font_size=32,
+                    anchor_x="right",
+                    color=arcade.color.GOLD if rank == 1 else arcade.color.WHITE,
+                ).draw()
+
+        # Instructions
+        arcade.Text(
+            "Press ESC or ENTER to return to menu",
+            x=SCREEN_WIDTH // 2,
+            y=100,
+            font_size=24,
+            anchor_x="center",
+            color=arcade.color.LIGHT_GRAY,
+        ).draw()
+
+    def on_key_press(self, symbol: int, modifiers: int) -> None:
+        """Handle keyboard input."""
+        if symbol == arcade.key.ESCAPE or symbol == arcade.key.RETURN:
+            menu_view = MainMenuView()
+            self.window.show_view(menu_view)
 
 
 class GameView(arcade.View):
@@ -346,6 +475,8 @@ class GameView(arcade.View):
         """Initialize the game view."""
         super().__init__()
         self.is_over = False
+        self.player_name = ""
+        self.name_saved = False
 
         self.player_sprite = ShipSprite(
             ":resources:images/space_shooter/playerShip1_blue.png",
@@ -375,6 +506,8 @@ class GameView(arcade.View):
     def setup(self) -> None:
         """Set up the game, initialize variables."""
         self.is_over = False
+        self.player_name = ""
+        self.name_saved = False
         self.asteroid_list.clear()
         self.score = 0
         self.player_sprite.lives = 1  # TODO change to 3 after testing
@@ -397,27 +530,70 @@ class GameView(arcade.View):
         self.clear()
 
         if self.is_over:
-            arcade.Text(
-                f"Your score: {self.score}",
-                x=SCREEN_WIDTH // 2,
-                y=SCREEN_HEIGHT // 2 + 60,
-                font_size=42,
-                anchor_x="center",
-            ).draw()
-            arcade.Text(
-                "Press R to restart the game",
-                x=SCREEN_WIDTH // 2,
-                y=SCREEN_HEIGHT // 2,
-                font_size=42,
-                anchor_x="center",
-            ).draw()
-            arcade.Text(
-                "Press Q to go to main menu",
-                x=SCREEN_WIDTH // 2,
-                y=SCREEN_HEIGHT // 2 - 60,
-                font_size=42,
-                anchor_x="center",
-            ).draw()
+            if not self.name_saved:
+                # Name entry screen
+                arcade.Text(
+                    f"Your score: {self.score}",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 + 100,
+                    font_size=42,
+                    anchor_x="center",
+                ).draw()
+                arcade.Text(
+                    "Enter your name:",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 + 30,
+                    font_size=36,
+                    anchor_x="center",
+                ).draw()
+                # Display name with cursor
+                name_display = self.player_name + "_"
+                arcade.Text(
+                    name_display,
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 - 30,
+                    font_size=42,
+                    anchor_x="center",
+                    color=arcade.color.YELLOW,
+                ).draw()
+                arcade.Text(
+                    "Press ENTER to save",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 - 90,
+                    font_size=24,
+                    anchor_x="center",
+                ).draw()
+            else:
+                # After saving, show the menu options
+                arcade.Text(
+                    f"Your score: {self.score}",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 + 100,
+                    font_size=42,
+                    anchor_x="center",
+                ).draw()
+                arcade.Text(
+                    "Score saved!",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 + 30,
+                    font_size=36,
+                    anchor_x="center",
+                    color=arcade.color.GREEN,
+                ).draw()
+                arcade.Text(
+                    "Press R to restart the game",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 - 30,
+                    font_size=36,
+                    anchor_x="center",
+                ).draw()
+                arcade.Text(
+                    "Press Q to go to main menu",
+                    x=SCREEN_WIDTH // 2,
+                    y=SCREEN_HEIGHT // 2 - 90,
+                    font_size=36,
+                    anchor_x="center",
+                ).draw()
 
         # Draw our sprites
         self.player_sprite_list.draw()
@@ -473,11 +649,21 @@ class GameView(arcade.View):
             return
 
         if self.is_over:
-            if symbol == arcade.key.R:
-                self.setup()
-            elif symbol == arcade.key.Q:
-                menu_view = MainMenuView()
-                self.window.show_view(menu_view)
+            if not self.name_saved:
+                # Handle name input
+                if symbol == arcade.key.RETURN:
+                    if self.player_name.strip():  # Only save if name is not empty
+                        save_high_score(self.player_name.strip(), self.score)
+                        self.name_saved = True
+                elif symbol == arcade.key.BACKSPACE:
+                    self.player_name = self.player_name[:-1]
+            else:
+                # After name is saved, allow restart/quit
+                if symbol == arcade.key.R:
+                    self.setup()
+                elif symbol == arcade.key.Q:
+                    menu_view = MainMenuView()
+                    self.window.show_view(menu_view)
             return
 
         if not self.is_over:
@@ -496,9 +682,17 @@ class GameView(arcade.View):
                 # Go ahead and move it a frame
                 bullet.update()
 
+    def on_text(self, text: str) -> None:
+        """Handle text input for name entry."""
+        if self.is_over and not self.name_saved:
+            # Allow alphanumeric characters and spaces, limit to 15 characters
+            if len(self.player_name) < 15 and (text.isalnum() or text == " "):
+                self.player_name += text
+
     def on_key_release(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is released."""
-        self.player_sprite.on_key_release(symbol)
+        if not self.is_over:
+            self.player_sprite.on_key_release(symbol)
 
 
 def main() -> None:
