@@ -27,6 +27,19 @@ TOP_LIMIT = SCREEN_HEIGHT + OFFSCREEN_SPACE
 # High scores file
 HIGHSCORES_FILE = Path("highscores.json")
 
+# Particle effects for explosions
+PARTICLE_FADE_RATE = 8
+PARTICLE_MIN_SPEED = 2.5
+PARTICLE_SPEED_RANGE = 2.5
+PARTICLE_COUNT = 20
+PARTICLE_RADIUS = 3
+PARTICLE_COLORS = [
+    arcade.color.LIGHT_GRAY,
+    arcade.color.GRAY,
+    arcade.color.WHITE,
+    arcade.color.LIGHT_STEEL_BLUE,
+]
+
 
 def load_high_scores() -> list[dict[str, int | str]]:
     """Load high scores from JSON file."""
@@ -57,6 +70,34 @@ def get_top_scores(count: int = 5) -> list[dict[str, int | str]]:
     """Get the top N high scores."""
     scores = load_high_scores()
     return scores[:count]
+
+
+class Particle(arcade.SpriteCircle):
+    """Explosion particle for asteroid destruction."""
+
+    def __init__(self) -> None:
+        """Create a particle sprite."""
+        super().__init__(PARTICLE_RADIUS, random.choice(PARTICLE_COLORS))
+
+        # Set random direction and speed
+        speed = random.random() * PARTICLE_SPEED_RANGE + PARTICLE_MIN_SPEED
+        direction = random.randrange(360)
+        self.change_x = math.sin(math.radians(direction)) * speed
+        self.change_y = math.cos(math.radians(direction)) * speed
+
+    def update(self, delta_time: float = 1 / 60) -> None:
+        """Update the particle position and fade."""
+        time_step = 60 * delta_time
+
+        if self.alpha == 0:
+            # Faded out, remove
+            self.remove_from_sprite_lists()
+        else:
+            # Gradually fade out the particle
+            self.alpha = max(0, self.alpha - int(PARTICLE_FADE_RATE * time_step))
+            # Move the particle
+            self.center_x += self.change_x * time_step
+            self.center_y += self.change_y * time_step
 
 
 class AsteroidType(IntEnum):
@@ -488,6 +529,10 @@ class GameView(arcade.View):
         self.score = 0
         self.asteroid_list = arcade.SpriteList()
         self.bullet_list = arcade.SpriteList()
+        self.particles_list = arcade.SpriteList()
+
+        # Load explosion sound
+        self.explosion_sound = arcade.load_sound(":resources:sounds/explosion2.wav")
 
         # Text fields
         self.text_score = arcade.Text(
@@ -599,6 +644,7 @@ class GameView(arcade.View):
         self.player_sprite_list.draw()
         self.asteroid_list.draw()
         self.bullet_list.draw()
+        self.particles_list.draw()
 
         # Draw the text
         self.text_score.draw()
@@ -612,6 +658,7 @@ class GameView(arcade.View):
         self.player_sprite_list.update()
         self.asteroid_list.update()
         self.bullet_list.update()
+        self.particles_list.update(delta_time)
 
         # Bullet–asteroid collisions
         for bullet in self.bullet_list:  # iterate over a snapshot to be safe
@@ -621,6 +668,16 @@ class GameView(arcade.View):
                 bullet.remove_from_sprite_lists()
                 # remove all hit asteroids, update score, and respawn replacements
                 for asteroid in colliding_asteroids:
+                    # Create explosion particles
+                    for _ in range(PARTICLE_COUNT):
+                        particle = Particle()
+                        particle.center_x = asteroid.center_x
+                        particle.center_y = asteroid.center_y
+                        self.particles_list.append(particle)
+
+                    # Play explosion sound
+                    arcade.play_sound(self.explosion_sound)
+
                     self.score += 10
                     asteroid.remove_from_sprite_lists()
                     new_asteroids = asteroid.split()
