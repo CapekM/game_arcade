@@ -271,14 +271,81 @@ class BulletSprite(arcade.Sprite):
             self.remove_from_sprite_lists()
 
 
-class GameWindow(arcade.Window):
-    """Main game window."""
+class MainMenuView(arcade.View):
+    """Main menu view with keyboard navigation."""
 
     def __init__(self) -> None:
-        """Initialize the game window."""
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        """Initialize the main menu."""
+        super().__init__()
+        self.menu_options = ["Play", "Options", "Exit"]
+        self.selected_index = 0
+
+    def on_show_view(self) -> None:
+        """Called when this view is shown."""
+        self.window.background_color = arcade.color.DARK_LAVENDER
+
+    def on_draw(self) -> None:
+        """Draw the main menu."""
+        self.clear()
+
+        # Title
+        arcade.Text(
+            "ASTEROIDS",
+            x=SCREEN_WIDTH // 2,
+            y=SCREEN_HEIGHT // 2 + 150,
+            font_size=64,
+            anchor_x="center",
+            color=arcade.color.WHITE,
+        ).draw()
+
+        # Menu options
+        for i, option in enumerate(self.menu_options):
+            y_position = SCREEN_HEIGHT // 2 - i * 60
+            color = arcade.color.YELLOW if i == self.selected_index else arcade.color.WHITE
+            font_size = 42 if i == self.selected_index else 36
+
+            arcade.Text(
+                option,
+                x=SCREEN_WIDTH // 2,
+                y=y_position,
+                font_size=font_size,
+                anchor_x="center",
+                color=color,
+            ).draw()
+
+    def on_key_press(self, symbol: int, modifiers: int) -> None:
+        """Handle keyboard input for menu navigation."""
+        if symbol == arcade.key.UP or symbol == arcade.key.W:
+            self.selected_index = (self.selected_index - 1) % len(self.menu_options)
+        elif symbol == arcade.key.DOWN or symbol == arcade.key.S:
+            self.selected_index = (self.selected_index + 1) % len(self.menu_options)
+        elif symbol == arcade.key.RETURN or symbol == arcade.key.SPACE:
+            self._handle_selection()
+        elif symbol == arcade.key.ESCAPE:
+            self.window.close()
+
+    def _handle_selection(self) -> None:
+        """Handle menu option selection."""
+        selected_option = self.menu_options[self.selected_index]
+
+        if selected_option == "Play":
+            game_view = GameView()
+            game_view.setup()
+            self.window.show_view(game_view)
+        elif selected_option == "Options":
+            # TODO: Implement options menu
+            pass
+        elif selected_option == "Exit":
+            self.window.close()
+
+
+class GameView(arcade.View):
+    """Main game view."""
+
+    def __init__(self) -> None:
+        """Initialize the game view."""
+        super().__init__()
         self.is_over = False
-        self.background_color = arcade.color.DARK_LAVENDER  # Color(42, 42, 42, 255)
 
         self.player_sprite = ShipSprite(
             ":resources:images/space_shooter/playerShip1_blue.png",
@@ -333,14 +400,21 @@ class GameWindow(arcade.Window):
             arcade.Text(
                 f"Your score: {self.score}",
                 x=SCREEN_WIDTH // 2,
-                y=SCREEN_HEIGHT // 2 + 30,
+                y=SCREEN_HEIGHT // 2 + 60,
                 font_size=42,
                 anchor_x="center",
             ).draw()
             arcade.Text(
                 "Press R to restart the game",
                 x=SCREEN_WIDTH // 2,
-                y=SCREEN_HEIGHT // 2 - 30,
+                y=SCREEN_HEIGHT // 2,
+                font_size=42,
+                anchor_x="center",
+            ).draw()
+            arcade.Text(
+                "Press Q to go to main menu",
+                x=SCREEN_WIDTH // 2,
+                y=SCREEN_HEIGHT // 2 - 60,
                 font_size=42,
                 anchor_x="center",
             ).draw()
@@ -393,10 +467,18 @@ class GameWindow(arcade.Window):
     def on_key_press(self, symbol: int, modifiers: int) -> None:
         """Called whenever a key is pressed."""
         if symbol == arcade.key.ESCAPE:
-            self.close()
+            # Return to main menu
+            menu_view = MainMenuView()
+            self.window.show_view(menu_view)
+            return
 
-        if self.is_over and symbol == arcade.key.R:
-            self.setup()
+        if self.is_over:
+            if symbol == arcade.key.R:
+                self.setup()
+            elif symbol == arcade.key.Q:
+                menu_view = MainMenuView()
+                self.window.show_view(menu_view)
+            return
 
         if not self.is_over:
             self.player_sprite.on_key_press(symbol)
@@ -421,8 +503,9 @@ class GameWindow(arcade.Window):
 
 def main() -> None:
     """Main function to start the game."""
-    window = GameWindow()
-    window.setup()
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    menu_view = MainMenuView()
+    window.show_view(menu_view)
     arcade.run()
 
 
