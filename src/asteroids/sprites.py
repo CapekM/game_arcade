@@ -193,7 +193,7 @@ class ShipSprite(arcade.Sprite):
         self.speed += self.thrust
 
         # Spawn thruster particles when thrusting
-        if self.thrust != 0 and self.thruster_particles_list is not None and not self.respawning:
+        if self.thrust > 0 and self.thruster_particles_list is not None and not self.respawning:
             # Calculate the back of the ship (opposite to direction of travel)
             # Ship's angle 0 is pointing up, so we need to calculate the rear position
             back_distance = self.height / 2

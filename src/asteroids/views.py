@@ -3,14 +3,14 @@
 import arcade
 
 from asteroids.constants import (
-    PARTICLE_COUNT,
+    EXPLOSION_PARTICLE_COUNT,
     SCALE,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     STARTING_ASTEROID_COUNT,
 )
 from asteroids.highscores import get_top_scores, save_high_score
-from asteroids.particles import Particle
+from asteroids.particles import ExplosionParticle
 from asteroids.sprites import AsteroidSprite, AsteroidType, BulletSprite, ShipSprite
 
 
@@ -243,6 +243,17 @@ class GameView(arcade.View):
         # Clear the screen to the background color
         self.clear()
 
+        # Draw our sprites
+        self.thruster_particles_list.draw()  # Draw thruster particles behind ship
+        self.player_sprite_list.draw()
+        self.asteroid_list.draw()
+        self.bullet_list.draw()
+        self.particles_list.draw()
+
+        # Draw the text
+        self.text_score.draw()
+        self.text_lives.draw()
+
         if self.is_over:
             if not self.name_saved:
                 # Name entry screen
@@ -309,17 +320,6 @@ class GameView(arcade.View):
                     anchor_x="center",
                 ).draw()
 
-        # Draw our sprites
-        self.thruster_particles_list.draw()  # Draw thruster particles behind ship
-        self.player_sprite_list.draw()
-        self.asteroid_list.draw()
-        self.bullet_list.draw()
-        self.particles_list.draw()
-
-        # Draw the text
-        self.text_score.draw()
-        self.text_lives.draw()
-
     def on_update(self, delta_time: float) -> None:
         """Update game logic."""
         if self.is_over:
@@ -340,16 +340,23 @@ class GameView(arcade.View):
                 # remove all hit asteroids, update score, and respawn replacements
                 for asteroid in colliding_asteroids:
                     # Create explosion particles
-                    for _ in range(PARTICLE_COUNT):
-                        particle = Particle()
+                    for _ in range(EXPLOSION_PARTICLE_COUNT):
+                        particle = ExplosionParticle()
                         particle.center_x = asteroid.center_x
                         particle.center_y = asteroid.center_y
                         self.particles_list.append(particle)
 
                     # Play explosion sound
                     arcade.play_sound(self.explosion_sound)
+                    if asteroid.asteroid_type == AsteroidType.BIG:
+                        self.score += 10
+                    elif asteroid.asteroid_type == AsteroidType.MEDIUM:
+                        self.score += 20
+                    elif asteroid.asteroid_type == AsteroidType.SMALL:
+                        self.score += 50
+                    else:  # TINY
+                        self.score += 100
 
-                    self.score += 10
                     asteroid.remove_from_sprite_lists()
                     new_asteroids = asteroid.split()
                     self.asteroid_list.extend(new_asteroids)
